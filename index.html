@@ -1,22 +1,36 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Electricity Statistics</title>
-  <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-  <header>
-    <h1>Electricity Statistics</h1>
-  </header>
-  <main>
-    <canvas id="electricityChart"></canvas>
-  </main>
-  <footer>
-    <p>Powered by Energy Insights</p>
-  </footer>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<html>
+  <head>
+    <title>Electricity Graph Viewer</title>
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Graph library !-->
+     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+
+  <body>
+    <div class="container">
+
+        <div class="sidebar">
+
+            <h2>Graphs</h2>
+
+            <button id="addGraph">Add Graph</button>
+
+            <ul id="graphList"></ul>
+
+        </div>
+
+        <div class="main">
+
+            <h1>Electricity Data (SSB)</h1>
+
+            <canvas id="chart"></canvas>
+
+        </div>
+
+    </div>
   <script src="script.js"></script>
-</body>
+  </body>
 </html>
+
