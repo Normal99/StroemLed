@@ -1,36 +1,21 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <title>Electricity Graph Viewer</title>
-    <link rel="stylesheet" href="style.css">
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Electricity Graph</title>
 
-    <!-- Graph library !-->
-     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  </head>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
 
-  <body>
-    <div class="container">
+    <h1>Electricity Consumption</h1>
 
-        <div class="sidebar">
+    <!-- Graph -->
+    <canvas id="myChart"></canvas>
 
-            <h2>Graphs</h2>
+    <!-- Your script -->
+    <script src="SSBapi.js"></script>
 
-            <button id="addGraph">Add Graph</button>
-
-            <ul id="graphList"></ul>
-
-        </div>
-
-        <div class="main">
-
-            <h1>Electricity Data (SSB)</h1>
-
-            <canvas id="chart"></canvas>
-
-        </div>
-
-    </div>
-  <script src="script.js"></script>
-  </body>
+</body>
 </html>
-
