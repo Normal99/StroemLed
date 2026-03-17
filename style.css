@@ -1,31 +1,84 @@
-body{
-  margin:0;
-  font-family:Arial;
+/* Generell stil for hele siden */
+body {
+  margin: 0;
+  font-family: 'Segoe UI', sans-serif;
+  background: linear-gradient(135deg, #0f172a, #1e293b);
+  color: #e2e8f0;
 }
 
-.container{
-  display:flex;
-  height:100vh;
+/* Hovedcontainer (sentrerer innholdet) */
+.container {
+  max-width: 1000px;
+  margin: 40px auto;
+  padding: 20px;
 }
 
-.sidebar{
-  width:250px;
-  background:#2c3e50;
-  color:white;
-  padding:20px;
+/* Tittel */
+h1 {
+  text-align: center;
+  margin-bottom: 30px;
 }
 
-.sidebar button{
-  width:100%;
-  padding:10px;
-  margin-bottom:10px;
+/* Kontrollpanel (dropdowns + knapp) */
+.controls {
+  display: flex;
+  justify-content: center;
+  gap: 20px; /* Increased gap for more distance */
+  flex-wrap: wrap;
+
+  padding: 20px;
+  border-radius: 16px;
+
+  /* Glass-effekt */
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
 }
 
-.main{
-  flex:1;
-  padding:30px;
+/* Felles stil for select og knapp */
+select, button {
+  padding: 12px 16px; /* Slightly larger padding for uniformity */
+  border-radius: 10px;
+  border: none;
+  font-size: 14px;
+  background-color: #1e293b; /* Same background for both */
+  color: #e2e8f0; /* Same text color for both */
+  cursor: pointer;
 }
 
-canvas{
-  max-width:900px;
+select:hover, button:hover {
+  background-color: #334155; /* Slight hover effect */
+}
+
+/* Dropdown (select) */
+select {
+  /* Removed specific styles as they are now shared */
+}
+
+/* Knapp */
+button {
+  /* Removed specific styles as they are now shared */
+  font-weight: bold;
+  transition: 0.2s;
+}
+
+/* Hover-effekt for knapp */
+button:hover {
+  background: #0ea5e9;
+  transform: scale(1.05);
+}
+
+/* Container for grafer */
+#chartsContainer {
+  margin-top: 30px;
+  padding: 20px;
+  border-radius: 16px;
+
+  /* Samme glass-effekt */
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+}
+
+/* Stil for canvas (grafene) */
+canvas {
+  margin-top: 20px;
 }

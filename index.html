@@ -4,18 +4,43 @@
     <meta charset="UTF-8">
     <title>Electricity Graph</title>
 
-    <!-- Chart.js -->
+    <!-- Kobler til CSS-filen -->
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Chart.js bibliotek for grafer -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
-    <h1>Electricity Consumption</h1>
+<h1>⚡ Electricity Dashboard</h1>
 
-    <!-- Graph -->
-    <canvas id="myChart"></canvas>
+<!-- Mode switch -->
+<select id="modeSelect">
+    <option value="single">Single view</option>
+    <option value="compare">Compare regions</option>
+</select>
 
-    <!-- Your script -->
-    <script src="SSBapi.js"></script>
+<br><br>
+
+<!-- Consumer -->
+<select id="forbrukerSelect"></select>
+
+<!-- Single region -->
+<select id="prisSelect"></select>
+
+<!-- Compare regions -->
+<select id="prisCompareSelect" multiple style="display:none;"></select>
+
+<br><br>
+
+<button onclick="handleCompare()">Run</button>
+
+<hr>
+
+<div id="chartsContainer"></div>
+
+<script src="SSBapi.js"></script>
+
 
 </body>
 </html>
