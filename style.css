@@ -1,84 +1,105 @@
-/* Generell stil for hele siden */
 body {
-  margin: 0;
-  font-family: 'Segoe UI', sans-serif;
-  background: linear-gradient(135deg, #0f172a, #1e293b);
-  color: #e2e8f0;
+margin: 0;
+font-family: sans-serif;
+background: #0f172a;
+color: #e2e8f0;
 }
 
-/* Hovedcontainer (sentrerer innholdet) */
 .container {
-  max-width: 1000px;
-  margin: 40px auto;
-  padding: 20px;
+max-width: 1600px;
+margin: 20px auto;
+padding: 20px;
 }
 
-/* Tittel */
-h1 {
-  text-align: center;
-  margin-bottom: 30px;
-}
-
-/* Kontrollpanel (dropdowns + knapp) */
 .controls {
-  display: flex;
-  justify-content: center;
-  gap: 20px; /* Increased gap for more distance */
-  flex-wrap: wrap;
-
-  padding: 20px;
-  border-radius: 16px;
-
-  /* Glass-effekt */
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
+display: flex;
+gap: 15px;
+margin-bottom: 20px;
 }
 
-/* Felles stil for select og knapp */
-select, button {
-  padding: 12px 16px; /* Slightly larger padding for uniformity */
-  border-radius: 10px;
-  border: none;
-  font-size: 14px;
-  background-color: #1e293b; /* Same background for both */
-  color: #e2e8f0; /* Same text color for both */
-  cursor: pointer;
+.layout {
+display: flex;
+gap: 30px;
 }
 
-select:hover, button:hover {
-  background-color: #334155; /* Slight hover effect */
+.left {
+width: 320px;
+display: flex;
+flex-direction: column;
+gap: 20px;
 }
 
-/* Dropdown (select) */
+.right {
+flex: 1;
+display: flex;
+flex-direction: column;
+gap: 20px;
+}
+
+.control-block {
+background: #1e293b;
+padding: 15px;
+border-radius: 10px;
+display: flex;
+flex-direction: column;
+gap: 10px;
+}
+
+#dimensionControls,
+#dimensionControls_2 {
+display: flex;
+flex-direction: column;
+gap: 8px;
+}
+
+.dim {
+display: flex;
+flex-direction: column;
+}
+
+.time-row {
+display: flex;
+gap: 10px;
+}
+
 select {
-  /* Removed specific styles as they are now shared */
+padding: 8px;
+background: #0f172a;
+color: #e2e8f0;
+border: 1px solid #334155;
+border-radius: 6px;
 }
 
-/* Knapp */
 button {
-  /* Removed specific styles as they are now shared */
-  font-weight: bold;
-  transition: 0.2s;
+padding: 8px 20px;
+background: #3b82f6;
+color: #fff;
+border: none;
+border-radius: 6px;
+cursor: pointer;
+font-weight: 600;
+transition: background 0.2s;
 }
 
-/* Hover-effekt for knapp */
 button:hover {
-  background: #0ea5e9;
-  transform: scale(1.05);
+background: #2563eb;
 }
 
-/* Container for grafer */
-#chartsContainer {
-  margin-top: 30px;
-  padding: 20px;
-  border-radius: 16px;
-
-  /* Samme glass-effekt */
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
+.controls label {
+display: flex;
+align-items: center;
+gap: 6px;
+cursor: pointer;
+user-select: none;
 }
 
-/* Stil for canvas (grafene) */
+.chart-card {
+background: #1e293b;
+padding: 15px;
+border-radius: 10px;
+}
+
 canvas {
-  margin-top: 20px;
+width: 100% !important;
+height: 320px !important;
 }

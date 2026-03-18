@@ -1,46 +1,72 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Electricity Graph</title>
-
-    <!-- Kobler til CSS-filen -->
-    <link rel="stylesheet" href="style.css">
-
-    <!-- Chart.js bibliotek for grafer -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <meta charset="UTF-8">
+  <title>Electricity Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 <div class="container">
 
-<h1>⚡ Electricity Dashboard</h1>
+  <h1>⚡ Electricity Dashboard</h1>
 
-<div class="controls">
+  <div class="controls">
+    <select id="tableSelect" onchange="onTableChange('', this.value)">
+        <option value="14092">14092</option>
+        <option value="14091">14091</option>
+        <option value="14093">14093</option>
+        <option value="09387">09387</option>
+        <option value="14491">14491</option>
+        <option value="09363">09363</option>
+    </select>
 
-<select id="tableSelect">    
-    <option value="14092">14092</option>
-    <option value="14091">14091</option>
-    <option value="14093">14093</option>
-    <option value="09387">09387</option>
-</select>
+    <label><input type="checkbox" id="toggleChart2" onchange="onToggleChart2(this)"> Chart 2</label>
+    <label><input type="checkbox" id="toggleCompare" onchange="onToggleCompare(this)"> Compare</label>
 
-<select id="compareToggle">
-    <option value="single">Single view</option>
-    <option value="compare">Compare</option>
-</select>
+    <button onclick="handleFetch()">Run</button>
+  </div>
 
-<div id="dynamicSelectors"></div>
+  <div class="layout">
 
-<button onclick="handleFetch()">Run</button>
+    <div class="left">
 
+      <div class="control-block">
+        <h3>Chart 1</h3>
+        <div id="dimensionControls"></div>
+        <div class="time-row">
+          <select id="Tid_start"></select>
+          <select id="Tid_end"></select>
+        </div>
+      </div>
+
+      <div class="control-block" id="controls_2" style="display:none;">
+        <h3>Chart 2</h3>
+        <select id="tableSelect_2" onchange="onTableChange('_2', this.value)">
+            <option value="14092">14092</option>
+            <option value="14091">14091</option>
+            <option value="14093">14093</option>
+            <option value="09387">09387</option>
+            <option value="14491">14491</option>
+            <option value="09363">09363</option>
+        </select>
+        <div id="dimensionControls_2"></div>
+        <div class="time-row">
+          <select id="Tid_start_2"></select>
+          <select id="Tid_end_2"></select>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="right">
+      <div class="chart-card"><canvas id="chart1"></canvas></div>
+      <div class="chart-card" id="chart2Card"       style="display:none;"><canvas id="chart2"></canvas></div>
+      <div class="chart-card" id="chartCompareCard" style="display:none;"><canvas id="chartCompare"></canvas></div>
+    </div>
+
+  </div>
 </div>
-
-<div id="chartsContainer"></div>
-
-</div>
-
 <script src="SSBapi.js"></script>
-
-
 </body>
 </html>

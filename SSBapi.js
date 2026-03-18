@@ -1,247 +1,267 @@
-let metadata = null;
-let currentTable = "14092";
-let chartInstance = null;
-
-function formatTime(ssbTime) {
-
-    const timeUnit = metadata?.extension?.px?.timeUnit;
-
-    if (timeUnit === "Monthly") {
-        const year = ssbTime.substring(0, 4);
-        const month = ssbTime.substring(5);
-
-        const months = [
-            "Jan","Feb","Mar","Apr","May","Jun",
-            "Jul","Aug","Sep","Oct","Nov","Dec"
-        ];
-
-        return months[parseInt(month) - 1] + " " + year;
-    }
-
-    if (timeUnit === "Quarterly") {
-        const year = ssbTime.substring(0, 4);
-        const quarter = ssbTime.substring(5);
-        return "Q" + quarter + " " + year;
-    }
-
-    if (timeUnit === "Yearly") {
-        return ssbTime;
-    }
-
-    return ssbTime;
+// ── Time helpers (stateless, no class needed) ─────────────────────────────────
+function codeToTimestamp(code) {
+  const y    = parseInt(code);
+  const tail = code.substring(4).replace(/\D+/, "");
+  if (!tail)            return y * 12 + 11;
+  const n = parseInt(tail);
+  return tail.length === 1 ? y * 12 + (n * 3 - 1) : y * 12 + (n - 1);
 }
 
-async function loadMetadata(tableId) {
-    const res = await fetch(`https://data.ssb.no/api/pxwebapi/v2/tables/${tableId}/metadata`);
-    metadata = await res.json();
-    buildDynamicUI();
+function timestampToLabel(ts) {
+  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  return months[ts % 12] + " " + Math.floor(ts / 12);
 }
 
-function buildDynamicUI() {
+// ── SSBChart ──────────────────────────────────────────────────────────────────
+// Owns one chart panel: its table, metadata, UI controls, and Chart.js instance.
 
-    const container = document.getElementById("dynamicSelectors");
-    container.innerHTML = "";
+class SSBChart {
+  constructor(suffix, initialTable) {
+    this.suffix   = suffix;
+    this.table    = initialTable;
+    this.metadata = null;
+    this.chart    = null;
+  }
 
-    const dims = metadata.dimension;
-    const mode = document.getElementById("compareToggle").value;
+  // ── Getters for DOM elements ------------------------------------------------
+  get(id)        { return document.getElementById(id + this.suffix); }
+  getVal(id)     { return this.get(id)?.value; }
 
-    for (let dimName in dims) {
+  // ── Unit extracted from metadata -------------------------------------------
+  get unit() {
+    const u = Object.values(this.metadata?.dimension?.ContentsCode?.category?.unit ?? {})[0];
+    return u?.base || "";
+  }
 
-        if (dimName === "Tid") continue;
+  // ── Metadata + UI population ------------------------------------------------
+  async load(table = this.table) {
+    this.table    = table;
+    this.metadata = await fetch(
+      `https://data.ssb.no/api/pxwebapi/v2/tables/${this.table}/metadata`
+    ).then(r => r.json());
+    this._populateTime();
+    this._buildDimensions();
+  }
 
-        const dim = dims[dimName];
+  _populateTime() {
+    const times = Object.entries(this.metadata.dimension.Tid.category.label);
+    const opts  = times.map(([v, t]) => `<option value="${v}">${t}</option>`).join("");
+    ["Tid_start", "Tid_end"].forEach(id => this.get(id).innerHTML = opts);
+    this.get("Tid_start").selectedIndex = Math.max(0, times.length - 6);
+    this.get("Tid_end").selectedIndex   = times.length - 1;
+  }
 
-        const wrapper = document.createElement("div");
-        wrapper.style.display = "flex";
-        wrapper.style.flexDirection = "column";
+  _buildDimensions() {
+    const container = this.get("dimensionControls");
+    if (!container) return;
+    const dims = this.metadata.dimension;
+    container.innerHTML = Object.entries(dims)
+      .filter(([name]) => name !== "Tid")
+      .map(([name, dim]) => `
+        <div class="dim">
+          <label>${dim.label}</label>
+          <select id="${name + this.suffix}">
+            ${Object.entries(dim.category.label)
+              .map(([v, t]) => `<option value="${v}">${t}</option>`).join("")}
+          </select>
+        </div>`).join("");
+  }
 
-        const label = document.createElement("label");
-        label.textContent = dim.label;
+  // ── Data fetching -----------------------------------------------------------
+  async fetch() {
+    const dims = this.metadata.dimension;
 
-        const select = document.createElement("select");
-        select.id = dimName;
+    const contents = this.getVal("ContentsCode")
+      ?? Object.keys(dims.ContentsCode.category.index)[0];
 
-        if (mode === "compare") {
-            select.multiple = true;
-            select.size = 4;
-        }
+    const allTimes = Object.keys(dims.Tid.category.index);
+    let s = allTimes.indexOf(this.getVal("Tid_start"));
+    let e = allTimes.indexOf(this.getVal("Tid_end"));
+    if (s > e) [s, e] = [e, s];
 
-        const labels = dim.category.label;
+    let url = `https://data.ssb.no/api/pxwebapi/v2/tables/${this.table}/data?lang=no`
+            + `&valueCodes[Tid]=${allTimes.slice(s, e + 1).join(",")}`
+            + `&valueCodes[ContentsCode]=${contents}`;
 
-        for (let code in labels) {
-            const option = document.createElement("option");
-            option.value = code;
-            option.textContent = labels[code];
-            select.appendChild(option);
-        }
-
-        select.selectedIndex = 0;
-
-        wrapper.appendChild(label);
-        wrapper.appendChild(select);
-        container.appendChild(wrapper);
-    }
-}
-
-function getSelectedValues(selectId) {
-    const select = document.getElementById(selectId);
-    if (!select) return [];
-
-    if (select.multiple) {
-        return Array.from(select.selectedOptions).map(o => o.value);
-    }
-
-    return [select.value];
-}
-
-async function fetchSSB() {
-
-    const dims = metadata.dimension;
-    const mode = document.getElementById("compareToggle").value;
-
-    const contents =
-        document.getElementById("ContentsCode")?.value ||
-        Object.keys(dims.ContentsCode.category.index)[0];
-
-    let compareDim = null;
-
-    if (mode === "compare") {
-        compareDim = Object.keys(dims).find(dim => {
-            const el = document.getElementById(dim);
-            return el && el.multiple;
-        });
-    }
-
-    let selectedValues;
-
-    if (compareDim) {
-        selectedValues = getSelectedValues(compareDim);
-    } else {
-        selectedValues = [getSelectedValues("ContentsCode")[0]];
+    const parts = [];
+    for (const [dimName, dim] of Object.entries(dims)) {
+      if (dimName === "Tid") continue;
+      const value = this.getVal(dimName) ?? Object.keys(dim.category.index)[0];
+      if (!value) continue;
+      if (dimName !== "ContentsCode") url += `&valueCodes[${dimName}]=${value}`;
+      const lbl = dim.category.label[value];
+      if (lbl) parts.push(lbl.split("(")[0].trim());
     }
 
-    let datasets = [];
-    let labels = null;
+    const json     = await fetch(url).then(r => r.json());
+    const rawCodes = Object.keys(json.dimension.Tid.category.index);
 
-    for (let selected of selectedValues) {
+    return {
+      timestamps:  rawCodes.map(codeToTimestamp),
+      data:        json.value,
+      seriesLabel: parts.join(" - ") + (this.unit ? ` (${this.unit})` : ""),
+      unit:        this.unit
+    };
+  }
 
-        let url = `https://data.ssb.no/api/pxwebapi/v2/tables/${currentTable}/data?lang=no`;
-        url += "&valueCodes[Tid]=top(12)";
-        url += `&valueCodes[ContentsCode]=${contents}`;
+  // ── Rendering --------------------------------------------------------------
+  destroy() {
+    this.chart?.destroy();
+    this.chart = null;
+  }
 
-        for (let dimName in dims) {
-
-            if (dimName === "Tid" || dimName === "ContentsCode") continue;
-
-            let value;
-
-            if (dimName === compareDim) {
-                value = selected;
-            } else {
-                value = document.getElementById(dimName)?.value;
-            }
-
-            if (!value) continue;
-
-            url += `&valueCodes[${dimName}]=${value}`;
-        }
-
-        const res = await fetch(url);
-        const json = await res.json();
-
-        if (res.status !== 200) {
-            console.error("API ERROR:", json);
-            continue;
-        }
-
-        const rawLabels = Object.values(json.dimension.Tid.category.label);
-        const values = json.value;
-
-        if (!labels) {
-            labels = rawLabels.map(formatTime).reverse();
-        }
-
-        let parts = [];
-
-        for (let dimName in dims) {
-
-            if (dimName === "Tid") continue;
-
-            let value;
-
-            if (dimName === compareDim) {
-                value = selected;
-            } else {
-                value = document.getElementById(dimName)?.value;
-            }
-
-            if (!value) continue;
-
-            const label =
-                metadata.dimension[dimName]?.category?.label?.[value];
-
-            if (label) {
-                parts.push(label.split("(")[0].trim());
-            }
-        }
-
-        let labelName = parts.join(" - ");
-
-        datasets.push({
-            label: labelName,
-            data: values.reverse(),
-            borderWidth: 2
-        });
-    }
-
-    return { labels, datasets };
-}
-
-function createChart(labels, datasets) {
-
-    const container = document.getElementById("chartsContainer");
-    container.innerHTML = "";
-
-    const canvas = document.createElement("canvas");
-    container.appendChild(canvas);
-
-    const ctx = canvas.getContext("2d");
-
-    if (chartInstance) {
-        chartInstance.destroy();
-    }
-
-    chartInstance = new Chart(ctx, {
-        type: "line",
-        data: {
-            labels: labels,
-            datasets: datasets
-        },
-        options: {
-            responsive: true
-        }
+  render(canvasId, result) {
+    this.destroy();
+    const ctx = document.getElementById(canvasId);
+    if (!ctx) return;
+    this.chart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels:   result.timestamps.map(timestampToLabel),
+        datasets: [SSBChart.makeDataset(result, "#3b82f6")]
+      },
+      options: SSBChart.singleOptions(result.unit)
     });
+  }
+
+  // ── Static chart helpers ---------------------------------------------------
+  static makeDataset(r, color, yAxisID) {
+    return {
+      label:           r.seriesLabel,
+      data:            r.data,
+      tension:         0.3,
+      borderColor:     color,
+      backgroundColor: color + "33",
+      pointRadius:     3,
+      ...(yAxisID && { yAxisID, spanGaps: true })
+    };
+  }
+
+  static singleOptions(unit) {
+    return {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true },
+        tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.parsed.y?.toLocaleString()} ${unit}` } }
+      },
+      scales: {
+        x: { title: { display: true, text: "Time" } },
+        y: { title: { display: true, text: unit || "Value" } }
+      }
+    };
+  }
 }
-async function handleFetch() {
 
-    if (!metadata) return;
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+// Owns two SSBChart instances and handles compare mode + UI visibility.
 
-    const result = await fetchSSB();
-    if (!result || !result.labels) return;
+class Dashboard {
+  constructor() {
+    this.chart1      = new SSBChart("",   "14092");
+    this.chart2      = new SSBChart("_2", "14092");
+    this.compareChart = null;
+  }
 
-    createChart(result.labels, result.datasets);
+  async init() {
+    await Promise.all([this.chart1.load(), this.chart2.load()]);
+  }
+
+  // ── Visibility helper -------------------------------------------------------
+  show(id, visible) {
+    document.getElementById(id).style.display = visible ? "block" : "none";
+  }
+
+  // ── Run button -------------------------------------------------------------
+  async run() {
+    const showSecond = document.getElementById("toggleChart2").checked;
+    const compare    = document.getElementById("toggleCompare").checked;
+
+    const r1 = await this.chart1.fetch();
+    const r2 = (showSecond || compare) ? await this.chart2.fetch() : null;
+
+    this.chart1.destroy();
+    this.chart2.destroy();
+    this.compareChart?.destroy();
+    this.compareChart = null;
+
+    const chart1Card = document.getElementById("chart1").closest(".chart-card");
+
+    if (compare && r2) {
+      chart1Card.style.display = "none";
+      this.show("chart2Card",       false);
+      this.show("chartCompareCard", true);
+      this._renderCompare(r1, r2);
+    } else {
+      this.show("chartCompareCard", false);
+      chart1Card.style.display = "block";
+      this.chart1.render("chart1", r1);
+      this.show("chart2Card", showSecond && !!r2);
+      if (showSecond && r2) this.chart2.render("chart2", r2);
+    }
+  }
+
+  // ── Compare rendering -------------------------------------------------------
+  _renderCompare(r1, r2) {
+    const ctx = document.getElementById("chartCompare");
+    if (!ctx) return;
+
+    const allTs = [...new Set([...r1.timestamps, ...r2.timestamps])].sort((a, b) => a - b);
+    const map1  = Object.fromEntries(r1.timestamps.map((ts, i) => [ts, r1.data[i]]));
+    const map2  = Object.fromEntries(r2.timestamps.map((ts, i) => [ts, r2.data[i]]));
+
+    const d1 = { ...r1, data: allTs.map(ts => map1[ts] ?? null) };
+    const d2 = { ...r2, data: allTs.map(ts => map2[ts] ?? null) };
+    const [unit1, unit2] = [r1.unit || "Value", r2.unit || "Value"];
+
+    this.compareChart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels:   allTs.map(timestampToLabel),
+        datasets: [SSBChart.makeDataset(d1, "#3b82f6", "y1"), SSBChart.makeDataset(d2, "#f59e0b", "y2")]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+          legend: { display: true },
+          tooltip: { callbacks: { label: c => {
+            if (c.parsed.y === null) return null;
+            return `${c.dataset.label}: ${c.parsed.y.toLocaleString()} ${c.datasetIndex === 0 ? unit1 : unit2}`;
+          }}}
+        },
+        scales: {
+          x:  { title: { display: true, text: "Time" } },
+          y1: { position: "left",  title: { display: true, text: unit1, color: "#3b82f6" }, ticks: { color: "#3b82f6" }, grid: { color: "#33415580" } },
+          y2: { position: "right", title: { display: true, text: unit2, color: "#f59e0b" }, ticks: { color: "#f59e0b" }, grid: { drawOnChartArea: false } }
+        }
+      }
+    });
+  }
+
+  // ── Toggle handlers (called from HTML) -------------------------------------
+  onToggleChart2(cb) {
+    document.getElementById("controls_2").style.display = cb.checked ? "block" : "none";
+  }
+
+  onToggleCompare(cb) {
+    if (cb.checked) {
+      document.getElementById("toggleChart2").checked = true;
+      document.getElementById("controls_2").style.display = "block";
+    }
+  }
+
+  async onTableChange(suffix, value) {
+    const chart = suffix === "" ? this.chart1 : this.chart2;
+    await chart.load(value);
+  }
 }
-document.getElementById("tableSelect").onchange = async function () {
-    currentTable = this.value;
-    await loadMetadata(currentTable);
-};
 
-document.getElementById("compareToggle").onchange = () => {
-    buildDynamicUI();
-};
+// ── Bootstrap ─────────────────────────────────────────────────────────────────
+const dashboard = new Dashboard();
+dashboard.init();
 
-async function init() {
-    await loadMetadata(currentTable);
-}
-
-init();
+// Thin global shims so HTML onclick= attributes still work
+const handleFetch      = ()       => dashboard.run();
+const onToggleChart2   = cb       => dashboard.onToggleChart2(cb);
+const onToggleCompare  = cb       => dashboard.onToggleCompare(cb);
+const onTableChange    = (s, v)   => dashboard.onTableChange(s, v);
