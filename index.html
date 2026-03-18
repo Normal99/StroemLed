@@ -1,9 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="no">
 <head>
   <meta charset="UTF-8">
-<<<<<<< Updated upstream
-  <title>Electricity Dashboard</title>
+  <title>StrømLed</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 =======
@@ -15,7 +14,7 @@
 <body>
 <div class="container">
 
-  <h1>⚡ Electricity Dashboard</h1>
+  <h1>⚡ StrømLed</h1>
 
   <div class="controls">
     <select id="tableSelect" onchange="onTableChange('', this.value)">
@@ -27,10 +26,10 @@
         <option value="09363">09363</option>
     </select>
 
-    <label><input type="checkbox" id="toggleChart2" onchange="onToggleChart2(this)"> Chart 2</label>
-    <label><input type="checkbox" id="toggleCompare" onchange="onToggleCompare(this)"> Compare</label>
+    <label><input type="checkbox" id="toggleChart2" onchange="onToggleChart2(this)"> Graf 2</label>
+    <label><input type="checkbox" id="toggleCompare" onchange="onToggleCompare(this)"> Sammenlign</label>
 
-    <button onclick="handleFetch()">Run</button>
+    <button onclick="handleFetch()">Kjør</button>
   </div>
 
   <div class="layout">
@@ -38,7 +37,7 @@
     <div class="left">
 
       <div class="control-block">
-        <h3>Chart 1</h3>
+        <h3>Graf 1</h3>
         <div id="dimensionControls"></div>
         <div class="time-row">
           <select id="Tid_start"></select>
@@ -47,7 +46,7 @@
       </div>
 
       <div class="control-block" id="controls_2" style="display:none;">
-        <h3>Chart 2</h3>
+        <h3>Graf 2</h3>
         <select id="tableSelect_2" onchange="onTableChange('_2', this.value)">
             <option value="14092">14092</option>
             <option value="14091">14091</option>
