@@ -1,112 +1,218 @@
 let metadata = null;
+let currentTable = "14092";
+let chartInstance = null;
 
-// 🔧 Format month
-function formatMonth(ssbTime) {
-    const year = ssbTime.substring(0, 4);
-    const month = ssbTime.substring(5);
+function formatTime(ssbTime) {
 
-    const months = [
-        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-    ];
+    const timeUnit = metadata?.extension?.px?.timeUnit;
 
-    return months[parseInt(month) - 1] + " " + year;
+    if (timeUnit === "Monthly") {
+        const year = ssbTime.substring(0, 4);
+        const month = ssbTime.substring(5);
+
+        const months = [
+            "Jan","Feb","Mar","Apr","May","Jun",
+            "Jul","Aug","Sep","Oct","Nov","Dec"
+        ];
+
+        return months[parseInt(month) - 1] + " " + year;
+    }
+
+    if (timeUnit === "Quarterly") {
+        const year = ssbTime.substring(0, 4);
+        const quarter = ssbTime.substring(5);
+        return "Q" + quarter + " " + year;
+    }
+
+    if (timeUnit === "Yearly") {
+        return ssbTime;
+    }
+
+    return ssbTime;
 }
 
-// 🌐 Load metadata
-async function loadMetadata() {
-    const res = await fetch("https://data.ssb.no/api/pxwebapi/v2/tables/14092/metadata");
+async function loadMetadata(tableId) {
+    const res = await fetch(`https://data.ssb.no/api/pxwebapi/v2/tables/${tableId}/metadata`);
     metadata = await res.json();
-
-    console.log("Metadata loaded:", metadata);
+    buildDynamicUI();
 }
 
-// 🔍 Get code from label
-function getCode(dimension, userValue) {
-    const category = metadata.dimension[dimension].category;
+function buildDynamicUI() {
 
-    if (category.index[userValue] !== undefined) {
-        return userValue;
-    }
+    const container = document.getElementById("dynamicSelectors");
+    container.innerHTML = "";
 
-    const labels = category.label;
+    const dims = metadata.dimension;
+    const mode = document.getElementById("compareToggle").value;
 
-    for (let code in labels) {
-        if (labels[code].toLowerCase() === userValue.toLowerCase()) {
-            return code;
+    for (let dimName in dims) {
+
+        if (dimName === "Tid") continue;
+
+        const dim = dims[dimName];
+
+        const wrapper = document.createElement("div");
+        wrapper.style.display = "flex";
+        wrapper.style.flexDirection = "column";
+
+        const label = document.createElement("label");
+        label.textContent = dim.label;
+
+        const select = document.createElement("select");
+        select.id = dimName;
+
+        if (mode === "compare") {
+            select.multiple = true;
+            select.size = 4;
         }
-    }
 
-    console.error("Code not found:", userValue);
-    return null;
-}
+        const labels = dim.category.label;
 
-// 🎛️ Populate dropdowns
-function populateDropdowns() {
+        for (let code in labels) {
+            const option = document.createElement("option");
+            option.value = code;
+            option.textContent = labels[code];
+            select.appendChild(option);
+        }
 
-    const forbrukerSelect = document.getElementById("forbrukerSelect");
-    const prisSelect = document.getElementById("prisSelect");
-    const prisCompareSelect = document.getElementById("prisCompareSelect");
+        select.selectedIndex = 0;
 
-    const forbrukerData = metadata.dimension.Forbrukargruppe.category.label;
-    const prisData = metadata.dimension.Prisomraade.category.label;
-
-    forbrukerSelect.innerHTML = "";
-    prisSelect.innerHTML = "";
-    prisCompareSelect.innerHTML = "";
-
-    // Consumer
-    for (let code in forbrukerData) {
-        const option = document.createElement("option");
-        option.value = forbrukerData[code];
-        option.textContent = forbrukerData[code];
-        forbrukerSelect.appendChild(option);
-    }
-
-    // Regions
-    for (let code in prisData) {
-        const option1 = document.createElement("option");
-        option1.value = prisData[code];
-        option1.textContent = prisData[code];
-
-        const option2 = option1.cloneNode(true);
-
-        prisSelect.appendChild(option1);
-        prisCompareSelect.appendChild(option2);
+        wrapper.appendChild(label);
+        wrapper.appendChild(select);
+        container.appendChild(wrapper);
     }
 }
 
-// 🔄 Mode switch
-document.getElementById("modeSelect").onchange = function () {
-    const mode = this.value;
+function getSelectedValues(selectId) {
+    const select = document.getElementById(selectId);
+    if (!select) return [];
 
-    if (mode === "single") {
-        document.getElementById("prisSelect").style.display = "block";
-        document.getElementById("prisCompareSelect").style.display = "none";
+    if (select.multiple) {
+        return Array.from(select.selectedOptions).map(o => o.value);
+    }
+
+    return [select.value];
+}
+
+async function fetchSSB() {
+
+    const dims = metadata.dimension;
+    const mode = document.getElementById("compareToggle").value;
+
+    const contents =
+        document.getElementById("ContentsCode")?.value ||
+        Object.keys(dims.ContentsCode.category.index)[0];
+
+    let compareDim = null;
+
+    if (mode === "compare") {
+        compareDim = Object.keys(dims).find(dim => {
+            const el = document.getElementById(dim);
+            return el && el.multiple;
+        });
+    }
+
+    let selectedValues;
+
+    if (compareDim) {
+        selectedValues = getSelectedValues(compareDim);
     } else {
-        document.getElementById("prisSelect").style.display = "none";
-        document.getElementById("prisCompareSelect").style.display = "block";
+        selectedValues = [getSelectedValues("ContentsCode")[0]];
     }
-};
 
-// 🧱 Create canvas
-function createChartContainer() {
+    let datasets = [];
+    let labels = null;
+
+    for (let selected of selectedValues) {
+
+        let url = `https://data.ssb.no/api/pxwebapi/v2/tables/${currentTable}/data?lang=no`;
+        url += "&valueCodes[Tid]=top(12)";
+        url += `&valueCodes[ContentsCode]=${contents}`;
+
+        for (let dimName in dims) {
+
+            if (dimName === "Tid" || dimName === "ContentsCode") continue;
+
+            let value;
+
+            if (dimName === compareDim) {
+                value = selected;
+            } else {
+                value = document.getElementById(dimName)?.value;
+            }
+
+            if (!value) continue;
+
+            url += `&valueCodes[${dimName}]=${value}`;
+        }
+
+        const res = await fetch(url);
+        const json = await res.json();
+
+        if (res.status !== 200) {
+            console.error("API ERROR:", json);
+            continue;
+        }
+
+        const rawLabels = Object.values(json.dimension.Tid.category.label);
+        const values = json.value;
+
+        if (!labels) {
+            labels = rawLabels.map(formatTime).reverse();
+        }
+
+        let parts = [];
+
+        for (let dimName in dims) {
+
+            if (dimName === "Tid") continue;
+
+            let value;
+
+            if (dimName === compareDim) {
+                value = selected;
+            } else {
+                value = document.getElementById(dimName)?.value;
+            }
+
+            if (!value) continue;
+
+            const label =
+                metadata.dimension[dimName]?.category?.label?.[value];
+
+            if (label) {
+                parts.push(label.split("(")[0].trim());
+            }
+        }
+
+        let labelName = parts.join(" - ");
+
+        datasets.push({
+            label: labelName,
+            data: values.reverse(),
+            borderWidth: 2
+        });
+    }
+
+    return { labels, datasets };
+}
+
+function createChart(labels, datasets) {
+
     const container = document.getElementById("chartsContainer");
-
-    container.innerHTML = ""; // clear old
+    container.innerHTML = "";
 
     const canvas = document.createElement("canvas");
     container.appendChild(canvas);
 
-    return canvas;
-}
-
-// 📊 Create chart
-function createChart(canvas, labels, datasets) {
     const ctx = canvas.getContext("2d");
 
-    new Chart(ctx, {
-        type: 'line',
+    if (chartInstance) {
+        chartInstance.destroy();
+    }
+
+    chartInstance = new Chart(ctx, {
+        type: "line",
         data: {
             labels: labels,
             datasets: datasets
@@ -116,98 +222,26 @@ function createChart(canvas, labels, datasets) {
         }
     });
 }
+async function handleFetch() {
 
-// 🚀 Main logic
-async function handleCompare() {
+    if (!metadata) return;
 
-    const mode = document.getElementById("modeSelect").value;
+    const result = await fetchSSB();
+    if (!result || !result.labels) return;
 
-    const forbrukerLabel = document.getElementById("forbrukerSelect").value;
-    const forbrukerCode = getCode("Forbrukargruppe", forbrukerLabel);
-
-    const contents = Object.keys(metadata.dimension.ContentsCode.category.index)[0];
-
-    let datasets = [];
-    let labels = null;
-
-    // 🟢 SINGLE
-    if (mode === "single") {
-
-        const prisLabel = document.getElementById("prisSelect").value;
-        const prisCode = getCode("Prisomraade", prisLabel);
-
-        const url = "https://data.ssb.no/api/pxwebapi/v2/tables/14092/data?lang=no" +
-            "&valueCodes[Tid]=top(12)" +
-            `&valueCodes[Forbrukargruppe]=${forbrukerCode}` +
-            `&valueCodes[Prisomraade]=${prisCode}` +
-            `&valueCodes[ContentsCode]=${contents}`;
-
-        const res = await fetch(url);
-        const json = await res.json();
-
-        const rawLabels = Object.values(json.dimension.Tid.category.label);
-        const values = json.value;
-
-        const timeLabels = rawLabels.map(formatMonth);
-
-        timeLabels.reverse();
-        values.reverse();
-
-        datasets.push({
-            label: prisLabel,
-            data: values,
-            borderWidth: 2
-        });
-
-        labels = timeLabels;
-    }
-
-    // 🔵 COMPARE
-    if (mode === "compare") {
-
-        const selectedPris = Array.from(
-            document.getElementById("prisCompareSelect").selectedOptions
-        ).map(o => o.value);
-
-        for (let prisLabel of selectedPris) {
-
-            const prisCode = getCode("Prisomraade", prisLabel);
-
-            const url = "https://data.ssb.no/api/pxwebapi/v2/tables/14092/data?lang=no" +
-                "&valueCodes[Tid]=top(12)" +
-                `&valueCodes[Forbrukargruppe]=${forbrukerCode}` +
-                `&valueCodes[Prisomraade]=${prisCode}` +
-                `&valueCodes[ContentsCode]=${contents}`;
-
-            const res = await fetch(url);
-            const json = await res.json();
-
-            const rawLabels = Object.values(json.dimension.Tid.category.label);
-            const values = json.value;
-
-            const timeLabels = rawLabels.map(formatMonth);
-
-            timeLabels.reverse();
-            values.reverse();
-
-            if (!labels) labels = timeLabels;
-
-            datasets.push({
-                label: prisLabel,
-                data: values,
-                borderWidth: 2
-            });
-        }
-    }
-
-    const canvas = createChartContainer();
-    createChart(canvas, labels, datasets);
+    createChart(result.labels, result.datasets);
 }
+document.getElementById("tableSelect").onchange = async function () {
+    currentTable = this.value;
+    await loadMetadata(currentTable);
+};
 
-// 🟢 Init
+document.getElementById("compareToggle").onchange = () => {
+    buildDynamicUI();
+};
+
 async function init() {
-    await loadMetadata();
-    populateDropdowns();
+    await loadMetadata(currentTable);
 }
 
 init();

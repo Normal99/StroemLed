@@ -11,33 +11,33 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
+<div class="container">
 
 <h1>⚡ Electricity Dashboard</h1>
 
-<!-- Mode switch -->
-<select id="modeSelect">
-    <option value="single">Single view</option>
-    <option value="compare">Compare regions</option>
+<div class="controls">
+
+<select id="tableSelect">    
+    <option value="14092">14092</option>
+    <option value="14091">14091</option>
+    <option value="14093">14093</option>
+    <option value="09387">09387</option>
 </select>
 
-<br><br>
+<select id="compareToggle">
+    <option value="single">Single view</option>
+    <option value="compare">Compare</option>
+</select>
 
-<!-- Consumer -->
-<select id="forbrukerSelect"></select>
+<div id="dynamicSelectors"></div>
 
-<!-- Single region -->
-<select id="prisSelect"></select>
+<button onclick="handleFetch()">Run</button>
 
-<!-- Compare regions -->
-<select id="prisCompareSelect" multiple style="display:none;"></select>
-
-<br><br>
-
-<button onclick="handleCompare()">Run</button>
-
-<hr>
+</div>
 
 <div id="chartsContainer"></div>
+
+</div>
 
 <script src="SSBapi.js"></script>
 
